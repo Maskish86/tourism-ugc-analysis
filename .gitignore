@@ -1,0 +1,44 @@
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+.notebooks/
+
+# Data files
+data/raw/
+data/processed/
+data/examples/
+*.csv
+*.json
+*.parquet
+*.db
+archive/
+
+# Config / Secrets
+.env
+*.secret
+*.key
+*.pem
+credentials.json  
+
+# Logs / Temp
+*.log
+*.tmp
+*.bak
