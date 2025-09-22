@@ -69,6 +69,7 @@ negative_keywords:
   - "バンド"
   - "カラオケ"
   - "コンサート"
+  - "スタジオ"
   - "ダンス"
   - "展示会"
   - "fullmovie"
@@ -82,6 +83,7 @@ negative_keywords:
   - "ちいかわ"
   - "踊ってみた"
   - "歌ってみた"
+  - "ASMR"
   - "ラジオ"
   - "お笑い"
   - "漫才"
@@ -101,12 +103,24 @@ negative_keywords:
   - "ホームラン"
   - "バスケ"
   - "basketball"
+  - "バレー"
+  - "マラソン"
+  - "ランニング"
+  - "陸上"
+  - "テニス"
   - "ハイライト"
+  - "ダイジェスト"
+  - "ゴール"
   - "練習"
   - "practice"
+  - "トレーニング"
+  - "試合"
+  - "大会"
+  - "決勝"
   - "初心者"
   - "指導"
   - "部活"
+  - "クラブ"
 
   # 🏭 Work / Business / Promotion
   - "アルバイト"
@@ -148,6 +162,8 @@ negative_keywords:
   - "コンビニ"
   - "Tシャツ"
   - "ファッション"
+  - "まるひろ"
+  - "消防"
 
   # 📰 News / Politics / Incidents
   - "ニュース"
@@ -198,6 +214,9 @@ negative_keywords:
   - "DIY"
 
   # 🍜 Food (non-tourism cooking)
+  - "川越シェフ"
+  - "川越達也"
+  - "シェフ"
   - "定食"
   - "ラーメン"
   - "もつ煮"
@@ -209,7 +228,6 @@ negative_keywords:
   - "food vlog"
 
   # 🏠 Housing / Urban / Construction
-  - "川越シェフ"
   - "書店"
   - "エレベーター"
   - "マンション"
@@ -227,3 +245,6 @@ negative_keywords:
   - "天気"
   - "気温"
   - "暑さ"
+  
+  - "佐原"
+  - "栃木"

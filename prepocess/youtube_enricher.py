@@ -1,24 +1,30 @@
 from pathlib import Path
 import os
 import json
+import yaml
 import argparse
 import pandas as pd
 import re
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
-import yaml
+import isodate
 
 with open("config/kawagoe_keywords.yaml", "r", encoding="utf-8") as f:
     keywords = yaml.safe_load(f)
 NEGATIVE_KEYWORDS = keywords["negative_keywords"]
 
+with open("config/youtube_category_map.yaml", "r", encoding="utf-8") as f:
+    cfg = yaml.safe_load(f)
+CATEGORY_MAP = cfg["category_map"]
+
+with open("config/tourism_keyword_rules.yaml", "r", encoding="utf-8") as f: 
+    KEYWORD_DICT = yaml.safe_load(f)
+
 SEARCH_DIR = Path("data/raw/search")
 PROCESSED_DIR = Path("data/processed")
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
-
-def youtube_enricher(max_requests=100, batch_idx=0, min_views=5000, fetch_captions=True):
+def youtube_enricher(max_requests=100, batch_idx=0, min_views=5000):
     load_dotenv()
     API_KEY = os.getenv("YOUTUBE_API_KEY")
     if not API_KEY:
@@ -42,12 +48,12 @@ def youtube_enricher(max_requests=100, batch_idx=0, min_views=5000, fetch_captio
     print(f"Remaining {len(df_tourism)} videos after keyword filtering.")
    
     start = batch_idx * max_requests
-    end = (batch_idx + 1) * max_requests
+    end = min((batch_idx + 1) * max_requests, len(df_tourism))
     df_tourism = df_tourism.iloc[start : end]
     print(f"Processing {len(df_tourism)} videos (rows {start}–{end})")
 
-    final_df = enrich_videos_from_df(df_tourism, yt, min_views=min_views, fetch_caps=fetch_captions)
-    filepath = PROCESSED_DIR / "video_details.parquet"
+    final_df = enrich_videos_from_df(df_tourism, yt, min_views=min_views)
+    filepath = PROCESSED_DIR / "youtube_video_details.parquet"
     if filepath.exists():
         existing_df = pd.read_parquet(filepath)
         final_df = pd.concat([existing_df, final_df]).drop_duplicates(subset=["video_id"])
@@ -67,15 +73,6 @@ def get_video_details(youtube, video_ids, chunk_size=50):
         all_items.extend(response.get("items", []))
     return {"items": all_items}
 
-
-def fetch_captions(video_id, languages=['ja', 'en']):
-    try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
-        return " ".join([seg['text'] for seg in transcript])
-    except (TranscriptsDisabled, NoTranscriptFound):
-        return None
-    except Exception:
-        return None
 
 def enrich_videos_from_df(df_tourism, youtube, min_views, fetch_caps=True):
     video_ids = df_tourism["id.videoId"].tolist()
@@ -104,43 +101,35 @@ def enrich_videos_from_df(df_tourism, youtube, min_views, fetch_caps=True):
             "like_count": int(stats.get("likeCount", 0)),
             "comment_count": int(stats.get("commentCount", 0)),
             "favorite_count": int(stats.get("favoriteCount", 0)),
-
-            "duration": content.get("duration"),
+            "duration": isodate.parse_duration(content.get("duration")).total_seconds() if content.get("duration") else None,
             "definition": content.get("definition"),
             "category_id": snippet.get("categoryId"),
             "default_language": snippet.get("defaultLanguage"),
             "default_audio_language": snippet.get("defaultAudioLanguage"),
         }
-
-        row["likes_per_view"] = (
-            row["like_count"] / view_count if view_count > 0 else 0
-        )
-        row["comments_per_view"] = (
-            row["comment_count"] / view_count if view_count > 0 else 0
-        )
-
-        if fetch_caps:
-            row["captions"] = fetch_captions(item["id"])
-
         rows.append(row)
 
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    df["category_id"] = df["category_id"].map(CATEGORY_MAP).fillna("Other")
+    compiled_dict = {cat: re.compile("|".join(words), re.IGNORECASE) for cat, words in KEYWORD_DICT.items()}
+    df["text"] = df["title"].fillna("") + " " + df["description"].fillna("")
+    for cat, words in KEYWORD_DICT.items():
+        pattern = "|".join(words)
+        df[cat] = df["text"].str.contains(pattern, case=False, regex=True, na=False).astype(int)
+    return df.drop(columns=["text"])
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fetch video details for saved search results.")
-    parser.add_argument("--max_requests", type=int, default=9000)
+    parser.add_argument("--max_requests", type=int, default=100)
     parser.add_argument("--batch_idx", type=int, default=0)
-    parser.add_argument("--min_views", type=int, default=10000)
-    parser.add_argument("--no-captions",dest="captions",action="store_false")
-    parser.set_defaults(captions=True)
+    parser.add_argument("--min_views", type=int, default=5000)
     args = parser.parse_args()
     youtube_enricher(
         max_requests=args.max_requests,
         batch_idx=args.batch_idx,
         min_views=args.min_views,
-        fetch_captions=args.captions
     )
 
     

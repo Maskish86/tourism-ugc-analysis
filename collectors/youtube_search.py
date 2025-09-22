@@ -3,14 +3,14 @@ import os
 import json
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime
 
 
 OUTPUT_DIR = Path("data/raw/search")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def youtube_search(query: str, max_requests=10, after=None):
+def youtube_search(query: str, max_requests=10, end_year=None):
     load_dotenv()
     API_KEY = os.getenv("YOUTUBE_API_KEY")
     if not API_KEY:
@@ -18,7 +18,7 @@ def youtube_search(query: str, max_requests=10, after=None):
     yt = get_youtube_client(API_KEY)
 
     print(f"Fetching search results for: {query}")
-    results = run_split_search(yt, query, max_requests=max_requests, after=after)
+    results = run_split_search(yt, query, max_requests=max_requests, end_year=end_year)
     save_search_results(query, results)
 
 
@@ -57,54 +57,73 @@ def run_search(youtube, query: str, published_after=None, published_before=None,
     return all_items, requests_used
 
 
-def run_split_search(youtube, query: str, max_requests: int, after=None):
+def run_split_search(youtube, query: str, max_requests: int, end_year=None):
     collected = {}
     request_count = 0
 
-    if after:
-        start_year = datetime.fromisoformat(after).year
+    if end_year:
+        end_year = int(end_year)
     else:
-        start_year = datetime.now().year - 10
+        end_year = datetime.now().year
 
-    end_year = datetime.now().year
+    start_year = end_year - 5
 
     for year in range(end_year, start_year - 1, -1):
-        if request_count >= max_requests:
-            break
+        for half in [1, 2]:
+            if request_count >= max_requests:
+                break
 
-        published_after = datetime(year, 1, 1).isoformat("T") + "Z"
-        published_before = datetime(year + 1, 1, 1).isoformat("T") + "Z"
+            if half == 1:
+                published_after = datetime(year, 1, 1).isoformat("T") + "Z"
+                published_before = datetime(year, 7, 1).isoformat("T") + "Z"
+            else:
+                published_after = datetime(year, 7, 1).isoformat("T") + "Z"
+                published_before = datetime(year + 1, 1, 1).isoformat("T") + "Z"
 
-        items, used_requests = run_search(
-            youtube,
-            query,
-            published_after=published_after,
-            published_before=published_before,
-            request_budget=max_requests - request_count
-        )
+            items, used_requests = run_search(
+                youtube,
+                query,
+                published_after=published_after,
+                published_before=published_before,
+                request_budget=max_requests - request_count
+            )
 
-        request_count += used_requests
+            request_count += used_requests
+            for item in items:
+                vid = item["id"]["videoId"]
+                collected[vid] = item
 
-        for item in items:
-            vid = item["id"]["videoId"]
-            collected[vid] = item
+            print(f"[{year} H{half}] Total requests: {request_count}, Collected: {len(collected)}")
 
-        print(f"[{year}] Total requests: {request_count}, Collected: {len(collected)}")
-
-        if request_count >= max_requests:
-            break
+            if request_count >= max_requests:
+                break
 
     return list(collected.values())
+
 
 
 def save_search_results(query: str, results):
     filename = f"{query}_search.json".replace(" ", "_")
     filepath = OUTPUT_DIR / filename
 
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
+    if filepath.exists():
+        with open(filepath, "r", encoding="utf-8") as f:
+            try:
+                existing = json.load(f)
+            except json.JSONDecodeError:
+                existing = []
+    else:
+        existing = []
 
-    print(f"Saved {len(results)} unique results for '{query}' → {filepath}")
+    combined = {item["id"]["videoId"]: item for item in existing}
+    for item in results:
+        vid = item["id"]["videoId"]
+        combined[vid] = item
+
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(list(combined.values()), f, ensure_ascii=False, indent=2)
+
+    print(f"Saved {len(combined)} unique results for '{query}' → {filepath}")
 
 
 if __name__ == "__main__":
@@ -112,11 +131,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--query", type=str, required=True)
     parser.add_argument("--max_requests", type=int, default=90)
-    parser.add_argument("--after", type=str, default=None)
+    parser.add_argument("--end_year", type=int, default=2018)
     args = parser.parse_args()
 
     youtube_search(
         query=args.query,
         max_requests=args.max_requests,
-        after=args.after,
+        end_year=args.end_year,
     )
