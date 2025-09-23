@@ -2,7 +2,6 @@ from pathlib import Path
 import os
 import json
 import yaml
-import argparse
 import pandas as pd
 import re
 from googleapiclient.discovery import build
@@ -57,7 +56,7 @@ def youtube_enricher(max_requests=100, batch_idx=0, min_views=5000):
     if filepath.exists():
         existing_df = pd.read_parquet(filepath)
         final_df = pd.concat([existing_df, final_df]).drop_duplicates(subset=["video_id"])
-    final_df.to_parquet(filepath, index=False)
+    final_df.to_parquet(filepath, engine="pyarrow", index=False)
     print(f"Saved {len(final_df)} enriched records → {filepath}")
 
 
@@ -121,6 +120,7 @@ def enrich_videos_from_df(df_tourism, youtube, min_views, fetch_caps=True):
 
 
 if __name__ == "__main__":
+    import argparse
     parser = argparse.ArgumentParser(description="Fetch video details for saved search results.")
     parser.add_argument("--max_requests", type=int, default=100)
     parser.add_argument("--batch_idx", type=int, default=0)

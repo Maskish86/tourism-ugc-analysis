@@ -10,7 +10,7 @@ OUTPUT_DIR = Path("data/raw/search")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def youtube_search(query: str, max_requests=10, end_year=None):
+def youtube_search(query: str, max_requests=10, start_year=None, end_year=None):
     load_dotenv()
     API_KEY = os.getenv("YOUTUBE_API_KEY")
     if not API_KEY:
@@ -18,7 +18,7 @@ def youtube_search(query: str, max_requests=10, end_year=None):
     yt = get_youtube_client(API_KEY)
 
     print(f"Fetching search results for: {query}")
-    results = run_split_search(yt, query, max_requests=max_requests, end_year=end_year)
+    results = run_split_search(yt, query, max_requests, start_year=start_year, end_year=end_year)
     save_search_results(query, results)
 
 
@@ -57,7 +57,7 @@ def run_search(youtube, query: str, published_after=None, published_before=None,
     return all_items, requests_used
 
 
-def run_split_search(youtube, query: str, max_requests: int, end_year=None):
+def run_split_search(youtube, query: str, max_requests: int, start_year=None, end_year=None):
     collected = {}
     request_count = 0
 
@@ -66,19 +66,25 @@ def run_split_search(youtube, query: str, max_requests: int, end_year=None):
     else:
         end_year = datetime.now().year
 
-    start_year = end_year - 5
+    if start_year:
+        start_year = int(start_year)
+    else:
+        start_year = end_year - 2
+
+    quarter_starts = [(1,1), (4,1), (7,1), (10,1)]
+    quarter_ends   = [(4,1), (7,1), (10,1), (1,1)] 
 
     for year in range(end_year, start_year - 1, -1):
-        for half in [1, 2]:
+        for q in range(4):
             if request_count >= max_requests:
                 break
 
-            if half == 1:
-                published_after = datetime(year, 1, 1).isoformat("T") + "Z"
-                published_before = datetime(year, 7, 1).isoformat("T") + "Z"
+            published_after = datetime(year, *quarter_starts[q]).isoformat("T") + "Z"
+
+            if q < 3:
+                published_before = datetime(year, *quarter_ends[q]).isoformat("T") + "Z"
             else:
-                published_after = datetime(year, 7, 1).isoformat("T") + "Z"
-                published_before = datetime(year + 1, 1, 1).isoformat("T") + "Z"
+                published_before = datetime(year + 1, *quarter_ends[q]).isoformat("T") + "Z"
 
             items, used_requests = run_search(
                 youtube,
@@ -89,17 +95,17 @@ def run_split_search(youtube, query: str, max_requests: int, end_year=None):
             )
 
             request_count += used_requests
+
             for item in items:
                 vid = item["id"]["videoId"]
                 collected[vid] = item
 
-            print(f"[{year} H{half}] Total requests: {request_count}, Collected: {len(collected)}")
+            print(f"[{year} Q{q+1}] Total requests: {request_count}, Collected: {len(collected)}")
 
             if request_count >= max_requests:
                 break
 
     return list(collected.values())
-
 
 
 def save_search_results(query: str, results):
@@ -131,11 +137,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--query", type=str, required=True)
     parser.add_argument("--max_requests", type=int, default=90)
-    parser.add_argument("--end_year", type=int, default=2018)
+    parser.add_argument("--start_year", type=int, default=None)
+    parser.add_argument("--end_year", type=int, default=None)
     args = parser.parse_args()
 
     youtube_search(
         query=args.query,
         max_requests=args.max_requests,
+        start_year=args.start_year,
         end_year=args.end_year,
     )
