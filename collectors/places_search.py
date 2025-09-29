@@ -6,7 +6,6 @@ import googlemaps
 import requests
 from dotenv import load_dotenv
 
-
 load_dotenv()
 
 API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")

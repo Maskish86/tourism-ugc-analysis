@@ -3,6 +3,7 @@ import os
 import json
 import yaml
 import pandas as pd
+import numpy as np
 import re
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
@@ -23,7 +24,7 @@ SEARCH_DIR = Path("data/raw/search")
 PROCESSED_DIR = Path("data/processed")
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
-def youtube_enricher(max_requests=100, batch_idx=0, min_views=5000):
+def youtube_enricher(max_requests=10000, min_views=1000):
     load_dotenv()
     API_KEY = os.getenv("YOUTUBE_API_KEY")
     if not API_KEY:
@@ -44,18 +45,11 @@ def youtube_enricher(max_requests=100, batch_idx=0, min_views=5000):
     pattern = re.compile("|".join(map(re.escape, NEGATIVE_KEYWORDS)), flags=re.IGNORECASE)
     mask_negative = ~df_all["text"].str.contains(pattern, na=False)
     df_tourism = df_all[mask_negative].reset_index(drop=True)
-    print(f"Remaining {len(df_tourism)} videos after keyword filtering.")
-   
-    start = batch_idx * max_requests
-    end = min((batch_idx + 1) * max_requests, len(df_tourism))
-    df_tourism = df_tourism.iloc[start : end]
-    print(f"Processing {len(df_tourism)} videos (rows {start}–{end})")
+    print(f"Processing {len(df_tourism)} videos after keyword filtering.")
 
     final_df = enrich_videos_from_df(df_tourism, yt, min_views=min_views)
     filepath = PROCESSED_DIR / "youtube_video_details.parquet"
-    if filepath.exists():
-        existing_df = pd.read_parquet(filepath)
-        final_df = pd.concat([existing_df, final_df]).drop_duplicates(subset=["video_id"])
+    final_df = final_df.sort_values("publish_date", ascending=False).reset_index(drop=True)
     final_df.to_parquet(filepath, engine="pyarrow", index=False)
     print(f"Saved {len(final_df)} enriched records → {filepath}")
 
@@ -73,7 +67,7 @@ def get_video_details(youtube, video_ids, chunk_size=50):
     return {"items": all_items}
 
 
-def enrich_videos_from_df(df_tourism, youtube, min_views, fetch_caps=True):
+def enrich_videos_from_df(df_tourism, youtube, min_views):
     video_ids = df_tourism["id.videoId"].tolist()
     details = get_video_details(youtube, video_ids)
 
@@ -100,7 +94,7 @@ def enrich_videos_from_df(df_tourism, youtube, min_views, fetch_caps=True):
             "like_count": int(stats.get("likeCount", 0)),
             "comment_count": int(stats.get("commentCount", 0)),
             "favorite_count": int(stats.get("favoriteCount", 0)),
-            "duration": isodate.parse_duration(content.get("duration")).total_seconds() if content.get("duration") else None,
+            "duration": isodate.parse_duration(content.get("duration")).total_seconds() if content.get("duration") else np.nan,
             "definition": content.get("definition"),
             "category_id": snippet.get("categoryId"),
             "default_language": snippet.get("defaultLanguage"),
@@ -109,27 +103,29 @@ def enrich_videos_from_df(df_tourism, youtube, min_views, fetch_caps=True):
         rows.append(row)
 
     df = pd.DataFrame(rows)
+    df["publish_date"] = pd.to_datetime(
+        df["publish_date"].str.replace("Z", "+00:00"),
+        errors="coerce",
+        utc=True
+    )
+    df["duration"] = pd.to_numeric(df["duration"], errors="coerce").astype("float64")
     df["category_id"] = df["category_id"].map(CATEGORY_MAP).fillna("Other")
-    compiled_dict = {cat: re.compile("|".join(words), re.IGNORECASE) for cat, words in KEYWORD_DICT.items()}
-    df["text"] = df["title"].fillna("") + " " + df["description"].fillna("")
+    df["text"] = df["title"].fillna("") + " " + df["description"].fillna("") + " " + df["tags"].astype(str).fillna("") 
     for cat, words in KEYWORD_DICT.items():
         pattern = "|".join(words)
         df[cat] = df["text"].str.contains(pattern, case=False, regex=True, na=False).astype(int)
     return df.drop(columns=["text"])
 
 
-
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Fetch video details for saved search results.")
-    parser.add_argument("--max_requests", type=int, default=100)
-    parser.add_argument("--batch_idx", type=int, default=0)
-    parser.add_argument("--min_views", type=int, default=5000)
+    parser.add_argument("--max_requests", type=int, default=10000)
+    parser.add_argument("--min_views", type=int, default=1000)
     args = parser.parse_args()
     youtube_enricher(
         max_requests=args.max_requests,
-        batch_idx=args.batch_idx,
-        min_views=args.min_views,
+        min_views=args.min_views
     )
 
     

@@ -69,7 +69,7 @@ def run_split_search(youtube, query: str, max_requests: int, start_year=None, en
     if start_year:
         start_year = int(start_year)
     else:
-        start_year = end_year - 2
+        start_year = end_year - 1
 
     quarter_starts = [(1,1), (4,1), (7,1), (10,1)]
     quarter_ends   = [(4,1), (7,1), (10,1), (1,1)] 
@@ -126,10 +126,18 @@ def save_search_results(query: str, results):
         vid = item["id"]["videoId"]
         combined[vid] = item
 
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(list(combined.values()), f, ensure_ascii=False, indent=2)
+    sorted_items = sorted(
+        combined.values(),
+        key=lambda x: datetime.fromisoformat(
+            x["snippet"]["publishedAt"].replace("Z", "+00:00")
+        ),
+        reverse=True
+    )
 
-    print(f"Saved {len(combined)} unique results for '{query}' → {filepath}")
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(sorted_items, f, ensure_ascii=False, indent=2)
+
+    print(f"Saved {len(sorted_items)} unique results for '{query}' → {filepath}")
 
 
 if __name__ == "__main__":
