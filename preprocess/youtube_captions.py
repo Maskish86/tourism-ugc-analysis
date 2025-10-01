@@ -5,7 +5,7 @@ import time, random
 
 PROCESSED_DIR = Path("data/processed")
 
-def youtube_captions(max_fetches=10):
+def youtube_captions(max_fetches=20):
     df = pd.read_parquet(PROCESSED_DIR /"youtube_video_details.parquet")
     df["view_count"] = pd.to_numeric(df["view_count"], errors="coerce")
     df = df.sort_values("view_count", ascending=False).head(max_fetches)

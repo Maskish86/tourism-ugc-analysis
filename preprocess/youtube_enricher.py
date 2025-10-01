@@ -47,7 +47,7 @@ def youtube_enricher(max_requests=10000, min_views=1000):
     df_tourism = df_all[mask_negative].reset_index(drop=True)
     print(f"Processing {len(df_tourism)} videos after keyword filtering.")
 
-    final_df = enrich_videos_from_df(df_tourism, yt, min_views=min_views)
+    final_df = enrich_videos_from_df(df_tourism[:max_requests], yt, min_views=min_views)
     filepath = PROCESSED_DIR / "youtube_video_details.parquet"
     final_df = final_df.sort_values("publish_date", ascending=False).reset_index(drop=True)
     final_df.to_parquet(filepath, engine="pyarrow", index=False)
