@@ -2,6 +2,7 @@ import pandas as pd
 import re
 import os
 from google import genai
+import textwrap
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -40,6 +41,12 @@ def generate_video_report(max_videos=20, max_chars=100_000):
     with open(out_file, "w", encoding="utf-8") as f:
         f.write(generated_text)
     print(f"Saved generated report to {out_file}")
+
+    wrapped_text = wrap_preserve_newlines(generated_text, width=100)
+    out_md_file = OUTPUT_DIR / "generated_video_report.md"
+    with open(out_md_file, "w") as f:
+        f.write(wrapped_text)
+    print(f"Saved generated report to {out_md_file}")
 
 
 def build_video_prompt(video_id, df):
@@ -127,6 +134,14 @@ def generate_tourism_strategy(prompts_text, num_videos):
     )
     print(response)
     return response.text.strip()
+
+
+def wrap_preserve_newlines(text: str, width: int = 100) -> str:
+    return "\n".join(
+        textwrap.fill(line, width=width) if line.strip() else ""
+        for line in text.splitlines()
+    )
+
 
 if __name__ == "__main__":
     generate_video_report()

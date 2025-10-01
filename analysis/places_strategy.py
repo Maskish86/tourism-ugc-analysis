@@ -2,6 +2,7 @@ import pandas as pd
 import re
 import os
 from google import genai
+import textwrap
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -31,10 +32,16 @@ def generate_tourism_report(max_places=20):
         prompts.append(prompt)
     print(f"Generating report for {len(prompts)} places...")
     generated_text = generate_tourism_strategy("\n\n".join(prompts), max_places)
-    out_file = OUTPUT_DIR / "generated_tourism_report.txt"
-    with open(out_file, "w", encoding="utf-8") as f:
+    out_text_file = OUTPUT_DIR / "generated_tourism_report.txt"
+    with open(out_text_file, "w", encoding="utf-8") as f:
         f.write(generated_text)
-    print(f"Saved generated report to {out_file}")
+    print(f"Saved generated report to {out_text_file}")
+
+    wrapped_text = wrap_preserve_newlines(generated_text, width=100)
+    out_md_file = OUTPUT_DIR / "generated_tourism_report.md"
+    with open(out_md_file, "w") as f:
+        f.write(wrapped_text)
+    print(f"Saved generated report to {out_md_file}")
 
 def build_place_prompt(place_id, df_places, df_reviews):
     place = df_places[df_places["place_id"] == place_id].iloc[0]
@@ -95,6 +102,13 @@ def generate_tourism_strategy(prompts_text, max_places):
     )
     print(response)
     return response.text.strip()
+
+
+def wrap_preserve_newlines(text: str, width: int = 100) -> str:
+    return "\n".join(
+        textwrap.fill(line, width=width) if line.strip() else ""
+        for line in text.splitlines()
+    )
 
 
 if __name__ == "__main__":
