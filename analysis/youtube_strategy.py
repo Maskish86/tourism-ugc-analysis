@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 PROCESSED_DIR = Path("data/processed")
+OUTPUT_DIR = Path("outputs")
+OUTPUT_DIR.mkdir(exist_ok=True)
+
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 
 client = genai.Client(
@@ -29,14 +32,11 @@ def generate_video_report(max_videos=20, max_chars=100_000):
             break
         prompts.append(prompt)
         current_length += len(prompt) + 2
-
     prompts_text = "\n\n".join(prompts)
-    with open(PROCESSED_DIR / "prompts.txt", "w", encoding="utf-8") as f:
-        f.write(prompts_text)
 
     print(f"Generating report for {len(prompts)} videos...")
     generated_text = generate_tourism_strategy(prompts_text, len(prompts))
-    out_file = PROCESSED_DIR / "generated_video_report.txt"
+    out_file = OUTPUT_DIR / "generated_video_report.txt"
     with open(out_file, "w", encoding="utf-8") as f:
         f.write(generated_text)
     print(f"Saved generated report to {out_file}")

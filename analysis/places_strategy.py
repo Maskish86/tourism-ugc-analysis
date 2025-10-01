@@ -7,8 +7,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 PROCESSED_DIR = Path("data/processed")
-GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
+OUTPUT_DIR = Path("outputs")
+OUTPUT_DIR.mkdir(exist_ok=True)
 
+GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 client = genai.Client(
     vertexai=True,
     project=GCP_PROJECT_ID,
@@ -29,7 +31,7 @@ def generate_tourism_report(max_places=20):
         prompts.append(prompt)
     print(f"Generating report for {len(prompts)} places...")
     generated_text = generate_tourism_strategy("\n\n".join(prompts), max_places)
-    out_file = PROCESSED_DIR / "generated_tourism_report.txt"
+    out_file = OUTPUT_DIR / "generated_tourism_report.txt"
     with open(out_file, "w", encoding="utf-8") as f:
         f.write(generated_text)
     print(f"Saved generated report to {out_file}")
