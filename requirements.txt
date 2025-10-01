@@ -1,0 +1,9 @@
+pandas
+numpy
+google-api-python-client
+googlemaps
+python-dotenv
+requests
+pyarrow
+PyYAML
+isodate
