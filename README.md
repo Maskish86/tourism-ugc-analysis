@@ -16,19 +16,20 @@ pip install -r requirements.txt
 このプロジェクトでは .env ファイルを使用してGoogle Cloudの認証情報やプロジェクト設定を管理しています。
 ルートディレクトリに .env ファイルを作成し、以下の内容を記載してください：
 
-### GCP プロジェクトID
+```bash
+# GCP プロジェクトID
 GCP_PROJECT_ID=your-gcp-project-id
 
-### BigQuery データセット名
+# BigQuery データセット名
 BQ_DATASET=ugc_analysis
 
-### Google Cloud Storage バケット名（gs:// は不要）
+# Google Cloud Storage バケット名（gs:// は不要）
 GCS_BUCKET=your-gcs-bucket-name
 
-### APIキー（必要な場合のみ）
+# APIキー
 YOUTUBE_API_KEY=your-youtube-api-key
 GOOGLE_MAPS_API_KEY=your-google-maps-api-key
-
+```
 
 ## 使い方
 
