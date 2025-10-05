@@ -38,3 +38,11 @@ main.pyを実行してください
 ```bash
 python main.py
 ```
+## 📄 提出物
+
+### 1. 企画書（Proposal）
+- PDF版: [docs/proposal.pdf](docs/proposal.pdf)
+- Canva版: [Canvaで開く](https://www.canva.com/design/DAG0cYXokzY/hHd3eGqt8QDaxzyajZvrgQ/edit?utm_content=DAG0cYXokzY&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
+
+### 2. Looker Studio ダッシュボード
+- [観光UGC分析ダッシュボードを開く](https://lookerstudio.google.com/reporting/7de21625-d077-4eac-85a6-942c46f74519)
